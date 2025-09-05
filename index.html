@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Field Mapper</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #2c3e50, #3498db);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 30px;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e1e8ed;
+        }
+        
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            font-weight: 600;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 300px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            resize: vertical;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+        
+        .clear-btn {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+        
+        .copy-btn {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+        
+        .status {
+            padding: 8px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 500;
+            font-size: 12px;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .instructions {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+            font-size: 12px;
+        }
+        
+        .field-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 5px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Webhook Field Mapper</h1>
+            <p>Convert controlname/controlvalue pairs to clean field mappings</p>
+        </div>
+        
+        <div class="main-content">
+            <div>
+                <div class="section">
+                    <h2>Form Fields (Standard Fields)</h2>
+                    <div class="instructions">
+                        <strong>For standard MDprospects fields:</strong><br>
+                        first_name, last_name, email, phone, dob, zip, consent_to_text, address, source
+                    </div>
+                    <textarea id="formInput" placeholder='Paste controlname/controlvalue data for standard fields:
+
+{
+  "controlname123": "Full Name",
+  "controlvalue123": "John Doe",
+  "controlname124": "Email", 
+  "controlvalue124": "john@example.com"
+}'></textarea>
+                    <div class="controls">
+                        <button onclick="processFormFields()">Process Form Fields</button>
+                        <button class="clear-btn" onclick="clearForm()">Clear</button>
+                    </div>
+                    <div id="formStatus"></div>
+                </div>
+                
+                <div class="section">
+                    <h2>Form Fields JSON Output</h2>
+                    <textarea id="formOutput" readonly placeholder="Form Fields JSON will appear here..."></textarea>
+                    <div class="controls">
+                        <button class="copy-btn" onclick="copyForm()">Copy JSON</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div>
+                <div class="section">
+                    <h2>Field Mapping (Custom Fields)</h2>
+                    <div class="instructions">
+                        <strong>For ALL custom fields and system fields:</strong><br>
+                        • Handles controlname/controlvalue pairs<br>
+                        • Handles regular fields (uid, fid, etc.)<br>
+                        • Creates clean field IDs for everything
+                    </div>
+                    <textarea id="mappingInput" placeholder='Paste controlname/controlvalue data for custom fields:
+
+{
+  "controlname125": "Your comments or questions",
+  "controlvalue125": "test message",
+  "controlname126": "Appointment Type",
+  "controlvalue126": "Consultation"
+}'></textarea>
+                    <div class="controls">
+                        <button onclick="alert('Button clicked!'); processCustomFields();">Process Field Mapping</button>
+                        <button class="clear-btn" onclick="clearMapping()">Clear</button>
+                    </div>
+                    <div id="mappingStatus"></div>
+                </div>
+                
+                <div class="section">
+                    <h2>Field Mapping JSON Output</h2>
+                    <textarea id="mappingOutput" readonly placeholder="Field Mapping JSON will appear here..."></textarea>
+                    <div class="controls">
+                        <button class="copy-btn" onclick="copyMapping()">Copy JSON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Standard field mapping patterns
+        const standardFields = {
+            'first_name': ['first name', 'full name', 'name', 'patient name', 'fname'],
+            'last_name': ['last name', 'surname', 'lname', 'family name'],
+            'email': ['email', 'e-mail', 'mail', 'email address'],
+            'phone': ['phone', 'phone number', 'telephone', 'mobile', 'cell'],
+            'dob': ['dob', 'date of birth', 'birthday', 'birth date'],
+            'zip': ['zip', 'zip code', 'postal code', 'zipcode'],
+            'consent_to_text': ['consent to text', 'text consent', 'permission to text', 'consent'],
+            'address': ['address', 'street address', 'home address'],
+            'source': ['how did you hear about us', 'referral source', 'source', 'how did you find us']
+        };
+        
+        function isStandardField(description) {
+            const lower = description.toLowerCase();
+            for (const [standardField, patterns] of Object.entries(standardFields)) {
+                if (patterns.some(pattern => lower.includes(pattern))) {
+                    return standardField;
+                }
+            }
+            return null;
+        }
+        
+        function cleanJSON(input) {
+            return input
+                .replace(/,(\s*[}\]])/g, '$1')
+                .replace(/'/g, '"')
+                .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_\s]*?)(\s*):/g, '$1"$2":');
+        }
+        
+        function processFormFields() {
+            const input = document.getElementById('formInput').value.trim();
+            const output = document.getElementById('formOutput');
+            const status = document.getElementById('formStatus');
+            
+            if (!input) {
+                showStatus(status, 'Please enter data', 'error');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(cleanJSON(input));
+                const mapping = {};
+                
+                for (const key in data) {
+                    if (key.startsWith('controlname')) {
+                        const id = key.replace('controlname', '');
+                        const valueKey = 'controlvalue' + id;
+                        const description = data[key];
+                        
+                        if (data[valueKey] !== undefined) {
+                            const standardField = isStandardField(description);
+                            if (standardField) {
+                                mapping[standardField] = valueKey;
+                            }
+                        }
+                    }
+                }
+                
+                output.value = JSON.stringify(mapping, null, 2);
+                showStatus(status, `Found ${Object.keys(mapping).length} standard fields`, 'success');
+                
+            } catch (error) {
+                showStatus(status, 'Error: ' + error.message, 'error');
+            }
+        }
+        
+        function processCustomFields() {
+            const input = document.getElementById('mappingInput').value.trim();
+            const output = document.getElementById('mappingOutput');
+            const status = document.getElementById('mappingStatus');
+            
+            if (!input) {
+                showStatus(status, 'Please enter data', 'error');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(cleanJSON(input));
+                const mapping = {};
+                
+                for (const key in data) {
+                    if (key.startsWith('controlname')) {
+                        const id = key.replace('controlname', '');
+                        const valueKey = 'controlvalue' + id;
+                        const description = data[key];
+                        
+                        if (data[valueKey] !== undefined) {
+                            // Skip if this is actually a standard field
+                            if (!isStandardField(description)) {
+                                const cleanName = description
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9 ]/g, '')
+                                    .trim()
+                                    .replace(/\s+/g, '_')
+                                    .replace(/^_+|_+$/g, '');
+                                
+                                if (cleanName) {
+                                    mapping[cleanName] = valueKey;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                output.value = JSON.stringify(mapping, null, 2);
+                showStatus(status, `Created ${Object.keys(mapping).length} custom field mappings`, 'success');
+                
+            } catch (error) {
+                showStatus(status, 'Error: ' + error.message, 'error');
+            }
+        }
+        
+        function copyForm() {
+            const output = document.getElementById('formOutput');
+            if (output.value) {
+                output.select();
+                document.execCommand('copy');
+                showStatus(document.getElementById('formStatus'), 'Copied!', 'success');
+            }
+        }
+        
+        function copyMapping() {
+            const output = document.getElementById('mappingOutput');
+            if (output.value) {
+                output.select();
+                document.execCommand('copy');
+                showStatus(document.getElementById('mappingStatus'), 'Copied!', 'success');
+            }
+        }
+        
+        function clearForm() {
+            document.getElementById('formInput').value = '';
+            document.getElementById('formOutput').value = '';
+            document.getElementById('formStatus').innerHTML = '';
+        }
+        
+        function clearMapping() {
+            document.getElementById('mappingInput').value = '';
+            document.getElementById('mappingOutput').value = '';
+            document.getElementById('mappingStatus').innerHTML = '';
+        }
+        
+        function showStatus(element, message, type) {
+            element.innerHTML = '<div class="status ' + type + '">' + message + '</div>';
+            setTimeout(function() {
+                element.innerHTML = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
